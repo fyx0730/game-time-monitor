@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>缓存清理工具</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; background: #f0f0f0; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 30px; border-radius: 10px; }
+        button { padding: 10px 20px; margin: 10px; background: #007cba; color: white; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #005a87; }
+        .info { background: #e7f3ff; padding: 15px; border-radius: 5px; margin: 10px 0; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 缓存清理工具</h1>
+        
+        <div class="info">
+            <strong>当前时间:</strong> <span id="currentTime"></span><br>
+            <strong>页面URL:</strong> <span id="pageUrl"></span><br>
+            <strong>最后修改:</strong> <span id="lastModified"></span>
+        </div>
+        
+        <h3>清理缓存方法：</h3>
+        <button onclick="hardRefresh()">强制刷新页面</button>
+        <button onclick="clearCache()">清除本地缓存</button>
+        <button onclick="openMainPage()">打开主页面</button>
+        <button onclick="openDebugPage()">打开调试页面</button>
+        
+        <h3>手动清理步骤：</h3>
+        <ol>
+            <li><strong>Chrome/Edge:</strong> 按 Ctrl+Shift+R (Windows) 或 Cmd+Shift+R (Mac)</li>
+            <li><strong>Firefox:</strong> 按 Ctrl+F5 (Windows) 或 Cmd+Shift+R (Mac)</li>
+            <li><strong>Safari:</strong> 按 Cmd+Option+R</li>
+            <li><strong>或者:</strong> 打开开发者工具 (F12)，右键刷新按钮，选择"清空缓存并硬性重新加载"</li>
+        </ol>
+        
+        <div id="testResult"></div>
+    </div>
+
+    <script>
+        function updateInfo() {
+            document.getElementById('currentTime').textContent = new Date().toLocaleString();
+            document.getElementById('pageUrl').textContent = window.location.href;
+            document.getElementById('lastModified').textContent = document.lastModified || '未知';
+        }
+        
+        function hardRefresh() {
+            window.location.reload(true);
+        }
+        
+        function clearCache() {
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => {
+                        caches.delete(name);
+                    });
+                });
+            }
+            localStorage.clear();
+            sessionStorage.clear();
+            alert('缓存已清理，请刷新页面');
+        }
+        
+        function openMainPage() {
+            window.open('index.html?t=' + Date.now(), '_blank');
+        }
+        
+        function openDebugPage() {
+            window.open('debug.html?t=' + Date.now(), '_blank');
+        }
+        
+        // 测试文件是否更新
+        function testFileUpdate() {
+            fetch('index.html?t=' + Date.now())
+                .then(response => response.text())
+                .then(html => {
+                    const hasDebugLink = html.includes('debug.html') || html.includes('🔧');
+                    const result = document.getElementById('testResult');
+                    if (hasDebugLink) {
+                        result.innerHTML = '<div style="color: green; padding: 10px; background: #d4edda; border-radius: 5px; margin-top: 15px;">✅ 检测到更新：文件已包含调试链接</div>';
+                    } else {
+                        result.innerHTML = '<div style="color: red; padding: 10px; background: #f8d7da; border-radius: 5px; margin-top: 15px;">❌ 未检测到更新：文件可能还未更新</div>';
+                    }
+                })
+                .catch(err => {
+                    document.getElementById('testResult').innerHTML = '<div style="color: orange; padding: 10px; background: #fff3cd; border-radius: 5px; margin-top: 15px;">⚠️ 检测失败：' + err.message + '</div>';
+                });
+        }
+        
+        updateInfo();
+        setInterval(updateInfo, 1000);
+        
+        // 页面加载后自动测试
+        setTimeout(testFileUpdate, 2000);
+        
+        // 每30秒自动测试一次
+        setInterval(testFileUpdate, 30000);
+    </script>
+</body>
+</html>
