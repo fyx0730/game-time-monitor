@@ -10,9 +10,8 @@
 
 ## 🌟 在线演示
 
-访问 [在线演示](https://your-username.github.io/game-time-monitor/) 立即体验！
+访问 [在线演示](https://fyx0730.github.io/game-time-monitor/) 立即体验！
 
-> 注意：请将上面的 `your-username` 替换为你的 GitHub 用户名
 
 ## 功能特性
 
@@ -26,7 +25,7 @@
 ## 🚀 快速开始
 
 ### 在线使用
-直接访问 [在线版本](https://your-username.github.io/game-time-monitor/)，无需安装！
+直接访问 [在线版本](https://fyx0730.github.io/game-time-monitor/)，无需安装！
 
 ### 本地部署
 1. **下载项目**
@@ -166,13 +165,5 @@ mosquitto_pub -h localhost -t "game" -m '{"event":"game_end","playerId":"test123
 - [Chart.js](https://www.chartjs.org/) - 图表库
 - [GitHub Pages](https://pages.github.com/) - 免费静态网站托管
 
-## 📞 联系
-
-如果你有任何问题或建议，请通过以下方式联系：
-
-- 创建 [Issue](https://github.com/your-username/game-time-monitor/issues)
-- 发送邮件到 your-email@example.com
-
----
 
 ⭐ 如果这个项目对你有帮助，请给它一个星标！
