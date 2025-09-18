@@ -131,6 +131,7 @@ mosquitto_pub -h localhost -t "game" -m '{"event":"game_end","playerId":"test123
 
 ## 🔧 故障排除
 
+### 常见问题
 1. **连接失败**
    - 检查 MQTT Broker 是否支持 WebSocket
    - 确认防火墙设置
@@ -144,6 +145,18 @@ mosquitto_pub -h localhost -t "game" -m '{"event":"game_end","playerId":"test123
 3. **图表不显示**
    - 确保 Chart.js 库正确加载
    - 检查浏览器兼容性
+
+### GitHub Pages 特殊问题
+如果在 GitHub Pages 上遇到数据无法保存或时长清零的问题：
+
+- 🔧 **调试工具**: 访问 [debug.html](debug.html) 进行自动诊断
+- 📖 **详细指南**: 查看 [GitHub Pages 故障排除指南](GITHUB_PAGES_TROUBLESHOOTING.md)
+- 🚨 **常见原因**: 混合内容阻止、localStorage 限制、跨域问题
+
+### 快速解决方案
+- 使用 HTTPS (wss://) 而不是 HTTP (ws://) 连接 MQTT
+- 检查浏览器隐私设置，允许 GitHub Pages 存储数据
+- 尝试不同的 MQTT Broker 服务
 
 ## 🤝 贡献
 

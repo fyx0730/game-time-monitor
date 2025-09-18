@@ -19,6 +19,20 @@ class GameMonitorDashboard {
         setTimeout(() => {
             this.autoConnect();
         }, 1000);
+
+        // 启动定期保存
+        this.startPeriodicSave();
+
+        // 检查是否在 GitHub Pages 上运行
+        if (window.location.hostname.includes('github.io')) {
+            console.log('🌐 检测到 GitHub Pages 环境');
+            // 延迟显示提示，避免干扰用户
+            setTimeout(() => {
+                if (this.players.size === 0) {
+                    this.showNotification('💡 如遇到数据保存问题，请点击右上角 🔧 查看调试工具', 'info');
+                }
+            }, 10000);
+        }
     }
 
     initializeElements() {
@@ -86,6 +100,11 @@ class GameMonitorDashboard {
             this.testMessage();
         });
 
+        // 添加数据状态检查按钮（开发调试用）
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' || window.location.protocol === 'file:') {
+            this.addDebugButton();
+        }
+
         // 日期筛选按钮
         document.getElementById('filterBtn').addEventListener('click', () => {
             this.updateDailyStats();
@@ -133,6 +152,12 @@ class GameMonitorDashboard {
         if (!brokerUrl) {
             console.log('MQTT Broker 地址为空，跳过连接');
             return false;
+        }
+
+        // 检查是否使用了不安全的 WebSocket 连接
+        if (window.location.protocol === 'https:' && brokerUrl.startsWith('ws://')) {
+            this.showNotification('⚠️ HTTPS 页面无法连接到不安全的 WebSocket (ws://)，请使用 wss://', 'warning');
+            console.warn('混合内容警告: HTTPS 页面尝试连接到不安全的 WebSocket');
         }
 
         this.updateStatus('connecting', '连接中...');
@@ -252,8 +277,8 @@ class GameMonitorDashboard {
     }
 
     processPlayerEvent(playerId, data) {
-        console.log('=== 处理玩家事件 ===');
-        console.log('玩家ID:', playerId);
+        console.log('=== 处理设备事件 ===');
+        console.log('设备ID:', playerId);
         console.log('事件数据:', data);
         
         const now = new Date();
@@ -267,21 +292,22 @@ class GameMonitorDashboard {
 
         console.log('处理的事件:', event);
 
-        // 更新玩家状态
+        // 更新设备状态
         if (!this.players.has(playerId)) {
-            console.log('创建新玩家:', playerId);
+            console.log('创建新设备:', playerId);
             this.players.set(playerId, {
                 id: playerId,
-                name: data.playerName || playerId,
+                name: data.playerName || data.deviceName || playerId,
                 totalTime: 0,
                 sessions: [],
                 isOnline: false,
-                currentSession: null
+                currentSession: null,
+                createdAt: new Date().toISOString()
             });
         }
 
         const player = this.players.get(playerId);
-        console.log('当前玩家状态:', player);
+        console.log('当前设备状态:', player);
 
         if (event.type === 'game_start' || event.type === 'start') {
             console.log('处理游戏开始事件');
@@ -353,8 +379,11 @@ class GameMonitorDashboard {
             this.addEvent(player.name, `未知事件: ${event.type}`, 'info');
         }
 
-        console.log('更新后的玩家状态:', player);
-        console.log('当前所有玩家:', Array.from(this.players.entries()));
+        console.log('更新后的设备状态:', player);
+        console.log('当前所有设备:', Array.from(this.players.entries()));
+
+        // 立即保存重要数据变更
+        this.saveData();
 
         this.events.unshift(event);
         if (this.events.length > 100) {
@@ -607,29 +636,70 @@ class GameMonitorDashboard {
     }
 
     saveData() {
-        const data = {
-            players: Array.from(this.players.entries()),
-            events: this.events.slice(0, 50)
-        };
-        localStorage.setItem('gameMonitorData', JSON.stringify(data));
+        try {
+            const data = {
+                players: Array.from(this.players.entries()),
+                events: this.events.slice(0, 50),
+                timestamp: new Date().toISOString(),
+                version: '1.0'
+            };
+            
+            const jsonData = JSON.stringify(data);
+            localStorage.setItem('gameMonitorData', jsonData);
+            
+            console.log('✅ 数据保存成功:', {
+                playersCount: this.players.size,
+                eventsCount: this.events.length,
+                dataSize: (jsonData.length / 1024).toFixed(2) + 'KB',
+                timestamp: data.timestamp
+            });
+            
+            // 验证保存是否成功
+            const saved = localStorage.getItem('gameMonitorData');
+            if (!saved) {
+                console.error('❌ 数据保存失败: localStorage 返回空值');
+                this.showNotification('数据保存失败', 'error');
+            }
+            
+        } catch (error) {
+            console.error('❌ 数据保存失败:', error);
+            this.showNotification('数据保存失败: ' + error.message, 'error');
+        }
     }
 
     loadStoredData() {
         try {
+            console.log('🔄 开始加载存储数据...');
+            
+            // 检查 localStorage 是否可用
+            if (typeof(Storage) === "undefined") {
+                console.error('❌ 浏览器不支持 localStorage');
+                this.showNotification('浏览器不支持数据存储', 'error');
+                return;
+            }
+            
             const stored = localStorage.getItem('gameMonitorData');
+            console.log('📦 从 localStorage 读取数据:', stored ? '有数据' : '无数据');
+            
             if (stored) {
                 const data = JSON.parse(stored);
+                console.log('📊 解析数据:', {
+                    version: data.version || '未知',
+                    timestamp: data.timestamp || '未知',
+                    playersCount: data.players ? data.players.length : 0,
+                    eventsCount: data.events ? data.events.length : 0
+                });
+                
                 this.players = new Map(data.players || []);
                 this.events = data.events || [];
                 
                 // 页面刷新后，重置所有玩家的currentSession，但保持在线状态
-                // 这样可以正确处理后续的结束事件
+                let resetCount = 0;
                 this.players.forEach((player, playerId) => {
                     if (player.currentSession) {
-                        console.log(`重置玩家 ${playerId} 的会话状态 (页面刷新)`);
-                        // 保持在线状态，但清除currentSession
-                        // 这样如果收到结束事件，会触发估算逻辑
+                        console.log(`🔄 重置设备 ${playerId} 的会话状态 (页面刷新)`);
                         player.currentSession = null;
+                        resetCount++;
                     }
                     
                     // 确保时间戳是Date对象
@@ -649,10 +719,32 @@ class GameMonitorDashboard {
                 }));
                 
                 this.updateDisplay();
-                console.log('数据加载完成，玩家数量:', this.players.size);
+                
+                console.log('✅ 数据加载完成:', {
+                    设备数量: this.players.size,
+                    事件数量: this.events.length,
+                    重置会话: resetCount
+                });
+                
+                if (this.players.size > 0) {
+                    this.showNotification(`已加载 ${this.players.size} 个设备的历史数据`, 'success');
+                }
+                
+            } else {
+                console.log('📝 没有找到存储数据，使用默认设置');
             }
+            
         } catch (error) {
-            console.error('加载存储数据失败:', error);
+            console.error('❌ 加载存储数据失败:', error);
+            this.showNotification('数据加载失败: ' + error.message, 'error');
+            
+            // 尝试清除损坏的数据
+            try {
+                localStorage.removeItem('gameMonitorData');
+                console.log('🗑️ 已清除损坏的存储数据');
+            } catch (clearError) {
+                console.error('清除数据失败:', clearError);
+            }
         }
     }
 
@@ -1020,6 +1112,44 @@ class GameMonitorDashboard {
                 }
             }, 300);
         }, 3000);
+    }
+
+    addDebugButton() {
+        const debugBtn = document.createElement('button');
+        debugBtn.textContent = '数据状态';
+        debugBtn.style.cssText = 'position: fixed; top: 10px; left: 10px; z-index: 9999; padding: 5px 10px; background: #ed8936; color: white; border: none; border-radius: 4px; font-size: 12px; cursor: pointer;';
+        debugBtn.onclick = () => this.showDataStatus();
+        document.body.appendChild(debugBtn);
+    }
+
+    showDataStatus() {
+        const stored = localStorage.getItem('gameMonitorData');
+        const settings = localStorage.getItem('mqttConnectionSettings');
+        
+        const status = {
+            localStorage可用: typeof(Storage) !== "undefined",
+            数据存在: !!stored,
+            数据大小: stored ? (stored.length / 1024).toFixed(2) + 'KB' : '0KB',
+            设备数量: this.players.size,
+            事件数量: this.events.length,
+            连接设置: !!settings,
+            当前URL: window.location.href,
+            协议: window.location.protocol,
+            域名: window.location.hostname
+        };
+        
+        console.table(status);
+        alert('数据状态（详细信息请查看控制台）:\n' + JSON.stringify(status, null, 2));
+    }
+
+    // 定期保存数据（防止数据丢失）
+    startPeriodicSave() {
+        setInterval(() => {
+            if (this.players.size > 0) {
+                this.saveData();
+                console.log('🔄 定期保存数据完成');
+            }
+        }, 60000); // 每分钟保存一次
     }
 }
 

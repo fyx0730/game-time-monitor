@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>调试工具 - 游戏时长监控面板</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            color: #2d3748;
+        }
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            color: #4a5568;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .debug-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: #f7fafc;
+            border-radius: 10px;
+            border-left: 4px solid #4299e1;
+        }
+        .debug-section h2 {
+            color: #2d3748;
+            margin-bottom: 15px;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .status-item:last-child {
+            border-bottom: none;
+        }
+        .status-value {
+            font-weight: bold;
+        }
+        .status-ok { color: #48bb78; }
+        .status-error { color: #f56565; }
+        .status-warning { color: #ed8936; }
+        button {
+            background: #4299e1;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 5px;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        button:hover {
+            background: #3182ce;
+        }
+        .danger-btn {
+            background: #f56565;
+        }
+        .danger-btn:hover {
+            background: #e53e3e;
+        }
+        .success-btn {
+            background: #48bb78;
+        }
+        .success-btn:hover {
+            background: #38a169;
+        }
+        .log-area {
+            background: #2d3748;
+            color: #e2e8f0;
+            padding: 15px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: #4299e1;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        .back-link:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="index.html" class="back-link">← 返回主页面</a>
+        
+        <h1>🔧 调试工具</h1>
+        
+        <div class="debug-section">
+            <h2>系统状态检查</h2>
+            <div id="systemStatus">
+                <div class="status-item">
+                    <span>浏览器支持 localStorage:</span>
+                    <span class="status-value" id="localStorageSupport">检查中...</span>
+                </div>
+                <div class="status-item">
+                    <span>当前协议:</span>
+                    <span class="status-value" id="protocol">检查中...</span>
+                </div>
+                <div class="status-item">
+                    <span>域名:</span>
+                    <span class="status-value" id="hostname">检查中...</span>
+                </div>
+                <div class="status-item">
+                    <span>完整URL:</span>
+                    <span class="status-value" id="fullUrl">检查中...</span>
+                </div>
+                <div class="status-item">
+                    <span>用户代理:</span>
+                    <span class="status-value" id="userAgent">检查中...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <h2>数据存储状态</h2>
+            <div id="storageStatus">
+                <div class="status-item">
+                    <span>游戏数据存在:</span>
+                    <span class="status-value" id="gameDataExists">检查中...</span>
+                </div>
+                <div class="status-item">
+                    <span>数据大小:</span>
+                    <span class="status-value" id="dataSize">检查中...</span>
+                </div>
+                <div class="status-item">
+                    <span>设备数量:</span>
+                    <span class="status-value" id="deviceCount">检查中...</span>
+                </div>
+                <div class="status-item">
+                    <span>事件数量:</span>
+                    <span class="status-value" id="eventCount">检查中...</span>
+                </div>
+                <div class="status-item">
+                    <span>连接设置存在:</span>
+                    <span class="status-value" id="settingsExists">检查中...</span>
+                </div>
+                <div class="status-item">
+                    <span>最后保存时间:</span>
+                    <span class="status-value" id="lastSaved">检查中...</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <h2>MQTT 连接测试</h2>
+            <div>
+                <button onclick="testMqttConnection()">测试 MQTT 连接</button>
+                <button onclick="testWebSocketSupport()">测试 WebSocket 支持</button>
+            </div>
+            <div id="mqttTestResult" style="margin-top: 15px;"></div>
+        </div>
+
+        <div class="debug-section">
+            <h2>数据操作</h2>
+            <div>
+                <button onclick="exportData()" class="success-btn">导出数据</button>
+                <button onclick="importData()">导入数据</button>
+                <button onclick="testDataSave()">测试数据保存</button>
+                <button onclick="clearAllData()" class="danger-btn">清除所有数据</button>
+            </div>
+        </div>
+
+        <div class="debug-section">
+            <h2>控制台日志</h2>
+            <button onclick="clearLog()">清除日志</button>
+            <button onclick="enableVerboseLogging()">启用详细日志</button>
+            <div id="logArea" class="log-area">日志将显示在这里...</div>
+        </div>
+    </div>
+
+    <script>
+        let logBuffer = [];
+        let originalConsole = {};
+
+        // 劫持控制台输出
+        function setupConsoleCapture() {
+            ['log', 'error', 'warn', 'info'].forEach(method => {
+                originalConsole[method] = console[method];
+                console[method] = function(...args) {
+                    const timestamp = new Date().toLocaleTimeString();
+                    const message = `[${timestamp}] ${method.toUpperCase()}: ${args.join(' ')}`;
+                    logBuffer.push(message);
+                    updateLogDisplay();
+                    originalConsole[method].apply(console, args);
+                };
+            });
+        }
+
+        function updateLogDisplay() {
+            const logArea = document.getElementById('logArea');
+            logArea.textContent = logBuffer.slice(-50).join('\n');
+            logArea.scrollTop = logArea.scrollHeight;
+        }
+
+        function clearLog() {
+            logBuffer = [];
+            updateLogDisplay();
+        }
+
+        function enableVerboseLogging() {
+            console.log('详细日志已启用');
+            localStorage.setItem('debugMode', 'true');
+        }
+
+        // 系统状态检查
+        function checkSystemStatus() {
+            // localStorage 支持
+            const localStorageSupported = typeof(Storage) !== "undefined";
+            document.getElementById('localStorageSupport').textContent = localStorageSupported ? '✅ 支持' : '❌ 不支持';
+            document.getElementById('localStorageSupport').className = localStorageSupported ? 'status-value status-ok' : 'status-value status-error';
+
+            // 协议检查
+            const protocol = window.location.protocol;
+            document.getElementById('protocol').textContent = protocol;
+            document.getElementById('protocol').className = protocol === 'https:' ? 'status-value status-ok' : 'status-value status-warning';
+
+            // 域名
+            document.getElementById('hostname').textContent = window.location.hostname;
+
+            // 完整URL
+            document.getElementById('fullUrl').textContent = window.location.href;
+
+            // 用户代理
+            document.getElementById('userAgent').textContent = navigator.userAgent.substring(0, 100) + '...';
+        }
+
+        // 数据存储状态检查
+        function checkStorageStatus() {
+            try {
+                const gameData = localStorage.getItem('gameMonitorData');
+                const settings = localStorage.getItem('mqttConnectionSettings');
+
+                // 游戏数据存在
+                const gameDataExists = !!gameData;
+                document.getElementById('gameDataExists').textContent = gameDataExists ? '✅ 存在' : '❌ 不存在';
+                document.getElementById('gameDataExists').className = gameDataExists ? 'status-value status-ok' : 'status-value status-error';
+
+                // 数据大小
+                const dataSize = gameData ? (gameData.length / 1024).toFixed(2) + ' KB' : '0 KB';
+                document.getElementById('dataSize').textContent = dataSize;
+
+                // 解析数据
+                if (gameData) {
+                    const data = JSON.parse(gameData);
+                    document.getElementById('deviceCount').textContent = data.players ? data.players.length : 0;
+                    document.getElementById('eventCount').textContent = data.events ? data.events.length : 0;
+                    document.getElementById('lastSaved').textContent = data.timestamp || '未知';
+                } else {
+                    document.getElementById('deviceCount').textContent = '0';
+                    document.getElementById('eventCount').textContent = '0';
+                    document.getElementById('lastSaved').textContent = '无数据';
+                }
+
+                // 连接设置
+                const settingsExists = !!settings;
+                document.getElementById('settingsExists').textContent = settingsExists ? '✅ 存在' : '❌ 不存在';
+                document.getElementById('settingsExists').className = settingsExists ? 'status-value status-ok' : 'status-value status-error';
+
+            } catch (error) {
+                console.error('检查存储状态失败:', error);
+            }
+        }
+
+        // 测试 MQTT 连接
+        function testMqttConnection() {
+            const resultDiv = document.getElementById('mqttTestResult');
+            resultDiv.innerHTML = '<p>正在测试 MQTT 连接...</p>';
+
+            // 检查 MQTT.js 是否加载
+            if (typeof mqtt === 'undefined') {
+                resultDiv.innerHTML = '<p style="color: #f56565;">❌ MQTT.js 库未加载</p>';
+                return;
+            }
+
+            // 尝试连接到默认的 MQTT Broker
+            const brokerUrl = 'wss://guest:test@mqtt.aimaker.space:8084/mqtt';
+            
+            try {
+                const client = mqtt.connect(brokerUrl, {
+                    clientId: 'debug-test-' + Math.random().toString(16).substring(2, 8),
+                    connectTimeout: 5000
+                });
+
+                const timeout = setTimeout(() => {
+                    client.end();
+                    resultDiv.innerHTML = '<p style="color: #ed8936;">⚠️ 连接超时 (5秒)</p>';
+                }, 5000);
+
+                client.on('connect', () => {
+                    clearTimeout(timeout);
+                    client.end();
+                    resultDiv.innerHTML = '<p style="color: #48bb78;">✅ MQTT 连接成功</p>';
+                });
+
+                client.on('error', (err) => {
+                    clearTimeout(timeout);
+                    resultDiv.innerHTML = `<p style="color: #f56565;">❌ MQTT 连接失败: ${err.message}</p>`;
+                });
+
+            } catch (error) {
+                resultDiv.innerHTML = `<p style="color: #f56565;">❌ MQTT 连接异常: ${error.message}</p>`;
+            }
+        }
+
+        // 测试 WebSocket 支持
+        function testWebSocketSupport() {
+            const resultDiv = document.getElementById('mqttTestResult');
+            
+            if (typeof WebSocket === 'undefined') {
+                resultDiv.innerHTML = '<p style="color: #f56565;">❌ 浏览器不支持 WebSocket</p>';
+                return;
+            }
+
+            resultDiv.innerHTML = '<p style="color: #48bb78;">✅ 浏览器支持 WebSocket</p>';
+        }
+
+        // 导出数据
+        function exportData() {
+            try {
+                const gameData = localStorage.getItem('gameMonitorData');
+                const settings = localStorage.getItem('mqttConnectionSettings');
+                
+                const exportData = {
+                    gameData: gameData ? JSON.parse(gameData) : null,
+                    settings: settings ? JSON.parse(settings) : null,
+                    exportTime: new Date().toISOString(),
+                    version: '1.0'
+                };
+
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], {type: 'application/json'});
+                
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `game-monitor-backup-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+                
+                console.log('数据导出成功');
+            } catch (error) {
+                console.error('数据导出失败:', error);
+                alert('数据导出失败: ' + error.message);
+            }
+        }
+
+        // 导入数据
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const importData = JSON.parse(e.target.result);
+                        
+                        if (importData.gameData) {
+                            localStorage.setItem('gameMonitorData', JSON.stringify(importData.gameData));
+                        }
+                        
+                        if (importData.settings) {
+                            localStorage.setItem('mqttConnectionSettings', JSON.stringify(importData.settings));
+                        }
+                        
+                        console.log('数据导入成功');
+                        alert('数据导入成功！请刷新页面查看。');
+                        checkStorageStatus();
+                        
+                    } catch (error) {
+                        console.error('数据导入失败:', error);
+                        alert('数据导入失败: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            
+            input.click();
+        }
+
+        // 测试数据保存
+        function testDataSave() {
+            try {
+                const testData = {
+                    test: true,
+                    timestamp: new Date().toISOString(),
+                    random: Math.random()
+                };
+                
+                localStorage.setItem('debugTest', JSON.stringify(testData));
+                const saved = localStorage.getItem('debugTest');
+                
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    if (parsed.random === testData.random) {
+                        console.log('✅ 数据保存测试成功');
+                        alert('数据保存测试成功！');
+                    } else {
+                        console.error('❌ 数据保存测试失败: 数据不匹配');
+                        alert('数据保存测试失败: 数据不匹配');
+                    }
+                } else {
+                    console.error('❌ 数据保存测试失败: 无法读取');
+                    alert('数据保存测试失败: 无法读取');
+                }
+                
+                localStorage.removeItem('debugTest');
+                
+            } catch (error) {
+                console.error('数据保存测试异常:', error);
+                alert('数据保存测试异常: ' + error.message);
+            }
+        }
+
+        // 清除所有数据
+        function clearAllData() {
+            if (confirm('确定要清除所有数据吗？此操作不可恢复！')) {
+                try {
+                    localStorage.removeItem('gameMonitorData');
+                    localStorage.removeItem('mqttConnectionSettings');
+                    console.log('所有数据已清除');
+                    alert('所有数据已清除！');
+                    checkStorageStatus();
+                } catch (error) {
+                    console.error('清除数据失败:', error);
+                    alert('清除数据失败: ' + error.message);
+                }
+            }
+        }
+
+        // 页面加载时执行检查
+        window.onload = function() {
+            setupConsoleCapture();
+            checkSystemStatus();
+            checkStorageStatus();
+            
+            console.log('调试页面已加载');
+            console.log('当前时间:', new Date().toISOString());
+            console.log('页面URL:', window.location.href);
+        };
+
+        // 定期更新状态
+        setInterval(() => {
+            checkStorageStatus();
+        }, 5000);
+    </script>
+</body>
+</html>
