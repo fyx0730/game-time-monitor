@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏时长监控面板 - 实时MQTT设备监控</title>
+    <meta name="description" content="通过MQTT over WebSocket实时监控设备游戏时长的可视化面板，支持数据统计、图表展示和历史记录。">
+    <meta name="keywords" content="游戏时长,MQTT,WebSocket,实时监控,数据可视化,设备监控">
+    <meta name="author" content="Game Time Monitor">
+    
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="website">
+    <meta property="og:url" content="https://your-username.github.io/game-time-monitor/">
+    <meta property="og:title" content="游戏时长监控面板">
+    <meta property="og:description" content="通过MQTT over WebSocket实时监控设备游戏时长的可视化面板">
+    
+    <!-- Twitter -->
+    <meta property="twitter:card" content="summary_large_image">
+    <meta property="twitter:url" content="https://your-username.github.io/game-time-monitor/">
+    <meta property="twitter:title" content="游戏时长监控面板">
+    <meta property="twitter:description" content="通过MQTT over WebSocket实时监控设备游戏时长的可视化面板">
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/x-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎮</text></svg>">
+    
+    <!-- PWA -->
+    <meta name="theme-color" content="#667eea">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="default">
+    <meta name="apple-mobile-web-app-title" content="游戏监控">
+    
+    <link rel="stylesheet" href="style.css">
+    <script src="https://unpkg.com/mqtt@4.3.7/dist/mqtt.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🎮 游戏时长监控面板</h1>
+            <div class="connection-status">
+                <div class="status-info">
+                    <span id="status">未连接</span>
+                    <small id="autoConnectInfo" style="display: block; color: #718096; font-size: 0.8rem;">自动连接已启用</small>
+                </div>
+                <button id="connectBtn">连接</button>
+            </div>
+        </header>
+
+        <div class="config-panel">
+            <div class="config-item">
+                <label>MQTT Broker:</label>
+                <input type="text" id="brokerUrl" placeholder="wss://guest:test@mqtt.aimaker.space:8084/mqtt" value="wss://guest:test@mqtt.aimaker.space:8084/mqtt">
+            </div>
+            <div class="config-item">
+                <label>主题:</label>
+                <input type="text" id="topic" placeholder="game" value="game">
+            </div>
+            <div class="config-item">
+                <button id="testBtn" style="padding: 10px 20px; background: #48bb78; color: white; border: none; border-radius: 8px; cursor: pointer;">测试消息</button>
+            </div>
+        </div>
+
+        <div class="stats-overview">
+            <div class="stat-card">
+                <h3>在线设备</h3>
+                <div class="stat-value" id="onlinePlayers">0</div>
+            </div>
+            <div class="stat-card">
+                <h3 id="todayTotalLabel">今日总时长</h3>
+                <div class="stat-value" id="todayTotal">0h 0m</div>
+            </div>
+        </div>
+
+        <div class="main-content">
+            <div class="players-panel">
+                <h2>实时设备状态</h2>
+                <div id="playersList" class="players-list"></div>
+            </div>
+
+            <div class="charts-panel">
+                <h2>统计图表</h2>
+                <div class="chart-container">
+                    <canvas id="timeChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="daily-stats">
+            <h2>每日时长统计</h2>
+            <div class="date-filter">
+                <input type="date" id="startDate" />
+                <span>至</span>
+                <input type="date" id="endDate" />
+                <button id="filterBtn">筛选</button>
+                <button id="resetFilterBtn">重置</button>
+            </div>
+            <div id="dailyStatsList" class="daily-stats-list"></div>
+        </div>
+
+        <div class="events-log">
+            <h2>事件日志</h2>
+            <div id="eventsList" class="events-list"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
