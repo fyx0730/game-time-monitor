@@ -1193,8 +1193,8 @@ class GameMonitorDashboard {
             // 本地开发环境
             return 'http://localhost:3001/api';
         } else if (window.location.hostname.endsWith('.github.io')) {
-            // GitHub Pages 环境 - 使用公共后台服务
-            return 'https://game-monitor-api.herokuapp.com/api';
+            // GitHub Pages 环境 - 使用 Railway 后台服务
+            return 'https://game-time-monitor-production.up.railway.app/api';
         } else {
             // 其他环境，默认使用相对路径
             return '/api';

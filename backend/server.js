@@ -222,27 +222,52 @@ app.get('/api/health', (req, res) => {
     });
 });
 
+// 根路径处理
+app.get('/', (req, res) => {
+    res.json({
+        message: '🎮 游戏时长监控后台服务',
+        status: 'running',
+        endpoints: {
+            health: '/api/health',
+            users: '/api/users',
+            userData: '/api/data/:userId'
+        },
+        timestamp: new Date().toISOString()
+    });
+});
+
 // 启动服务器
 async function startServer() {
-    await ensureDataDir();
-    
-    app.listen(PORT, '0.0.0.0', () => {
-        console.log('🚀 游戏时长监控后台服务已启动');
-        console.log('📡 服务地址:', {
-            local: `http://localhost:${PORT}`,
-            network: process.env.RAILWAY_PUBLIC_DOMAIN ? 
-                `https://${process.env.RAILWAY_PUBLIC_DOMAIN}` : 
-                `http://0.0.0.0:${PORT}`
-        });
-        console.log('📁 数据目录:', DATA_DIR);
-        console.log('🌐 允许的跨域源:', allowedOrigins.filter(Boolean));
-        console.log('🔗 健康检查:', `${process.env.RAILWAY_PUBLIC_DOMAIN ? 'https' : 'http'}://${process.env.RAILWAY_PUBLIC_DOMAIN || 'localhost:' + PORT}/api/health`);
-        console.log('📱 环境:', process.env.NODE_ENV || 'development');
+    try {
+        await ensureDataDir();
+        console.log('✅ 数据目录已创建');
         
-        if (!process.env.RAILWAY_PUBLIC_DOMAIN && process.env.NODE_ENV !== 'production') {
-            console.log('🔗 前端页面:', `http://localhost:${PORT}/index.html`);
-        }
-    });
+        const server = app.listen(PORT, '0.0.0.0', () => {
+            console.log('🚀 游戏时长监控后台服务已启动');
+            console.log('📡 服务端口:', PORT);
+            console.log('📁 数据目录:', DATA_DIR);
+            console.log('🌐 允许的跨域源:', allowedOrigins.filter(Boolean));
+            console.log('📱 环境:', process.env.NODE_ENV || 'development');
+            
+            // Railway 环境变量
+            if (process.env.RAILWAY_PUBLIC_DOMAIN) {
+                console.log('🔗 Railway 域名:', process.env.RAILWAY_PUBLIC_DOMAIN);
+                console.log('🔗 健康检查:', `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/api/health`);
+            } else {
+                console.log('🔗 本地地址:', `http://localhost:${PORT}`);
+                console.log('🔗 健康检查:', `http://localhost:${PORT}/api/health`);
+            }
+        });
+        
+        server.on('error', (error) => {
+            console.error('❌ 服务器启动失败:', error);
+            process.exit(1);
+        });
+        
+    } catch (error) {
+        console.error('❌ 启动服务器时发生错误:', error);
+        process.exit(1);
+    }
 }
 
 startServer().catch(console.error);
