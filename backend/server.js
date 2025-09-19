@@ -2,10 +2,15 @@ const express = require('express');
 const cors = require('cors');
 const fs = require('fs').promises;
 const path = require('path');
+const GameDatabase = require('./database');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
 const DATA_DIR = path.join(__dirname, 'data');
+
+// 数据库实例
+const db = new GameDatabase();
+let isDbInitialized = false;
 
 // CORS 配置 - 支持多个域名
 const allowedOrigins = [
@@ -63,6 +68,33 @@ async function ensureDataDir() {
     }
 }
 
+// 初始化数据库
+async function initializeDatabase() {
+    try {
+        console.log('🔄 正在初始化数据库...');
+        await db.initialize();
+        isDbInitialized = true;
+        console.log('✅ 数据库初始化完成');
+    } catch (error) {
+        console.error('❌ 数据库初始化失败:', error);
+        console.log('⚠️ 将使用文件存储作为备用方案');
+        isDbInitialized = false;
+    }
+}
+
+// 数据库中间件 - 检查数据库状态
+app.use(async (req, res, next) => {
+    if (!isDbInitialized && req.path.startsWith('/api/')) {
+        // 尝试重新初始化数据库
+        try {
+            await initializeDatabase();
+        } catch (error) {
+            console.log('数据库仍不可用，使用文件存储');
+        }
+    }
+    next();
+});
+
 // 获取用户数据文件路径
 function getUserDataPath(userId) {
     return path.join(DATA_DIR, `${userId}.json`);
@@ -72,6 +104,26 @@ function getUserDataPath(userId) {
 app.get('/api/data/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
+        console.log(`💾 请求获取用户数据: ${userId}`);
+        
+        // 优先使用数据库
+        if (isDbInitialized) {
+            try {
+                const data = await db.getUserData(userId);
+                res.json({
+                    success: true,
+                    data: data,
+                    source: 'database',
+                    message: '从数据库获取数据成功'
+                });
+                console.log(`✅ 从数据库获取数据成功: ${userId}`);
+                return;
+            } catch (dbError) {
+                console.warn(`⚠️ 数据库读取失败，尝试文件存储:`, dbError.message);
+            }
+        }
+        
+        // 备用方案：文件存储
         const filePath = getUserDataPath(userId);
         
         try {
@@ -79,8 +131,10 @@ app.get('/api/data/:userId', async (req, res) => {
             res.json({
                 success: true,
                 data: JSON.parse(data),
-                message: '数据获取成功'
+                source: 'file',
+                message: '从文件获取数据成功'
             });
+            console.log(`✅ 从文件获取数据成功: ${userId}`);
         } catch (error) {
             if (error.code === 'ENOENT') {
                 // 文件不存在，返回空数据
@@ -90,10 +144,12 @@ app.get('/api/data/:userId', async (req, res) => {
                         players: [],
                         events: [],
                         timestamp: new Date().toISOString(),
-                        version: '1.0'
+                        version: '2.0'
                     },
+                    source: 'default',
                     message: '用户数据不存在，返回默认数据'
                 });
+                console.log(`🆕 用户数据不存在，返回默认数据: ${userId}`);
             } else {
                 throw error;
             }
@@ -120,11 +176,30 @@ app.post('/api/data/:userId', async (req, res) => {
             });
         }
         
-        // 添加服务器时间戳
+        console.log(`💾 请求保存用户数据: ${userId}`);
+        
+        // 优先使用数据库
+        if (isDbInitialized) {
+            try {
+                await db.saveUserData(userId, data);
+                res.json({
+                    success: true,
+                    source: 'database',
+                    message: '数据保存到数据库成功',
+                    timestamp: new Date().toISOString()
+                });
+                console.log(`✅ 数据保存到数据库成功: ${userId}`);
+                return;
+            } catch (dbError) {
+                console.warn(`⚠️ 数据库保存失败，尝试文件存储:`, dbError.message);
+            }
+        }
+        
+        // 备用方案：文件存储
         const dataWithTimestamp = {
             ...data,
             serverTimestamp: new Date().toISOString(),
-            version: '1.0'
+            version: '2.0'
         };
         
         const filePath = getUserDataPath(userId);
@@ -132,11 +207,12 @@ app.post('/api/data/:userId', async (req, res) => {
         
         res.json({
             success: true,
-            message: '数据保存成功',
+            source: 'file',
+            message: '数据保存到文件成功',
             timestamp: dataWithTimestamp.serverTimestamp
         });
         
-        console.log(`数据已保存: ${userId} (${JSON.stringify(dataWithTimestamp).length} bytes)`);
+        console.log(`✅ 数据保存到文件成功: ${userId} (${JSON.stringify(dataWithTimestamp).length} bytes)`);
         
     } catch (error) {
         console.error('保存数据失败:', error);
@@ -150,6 +226,26 @@ app.post('/api/data/:userId', async (req, res) => {
 // API: 获取所有用户列表
 app.get('/api/users', async (req, res) => {
     try {
+        console.log('💾 请求获取用户列表');
+        
+        // 优先使用数据库
+        if (isDbInitialized) {
+            try {
+                const users = await db.getAllUsers();
+                res.json({
+                    success: true,
+                    users: users,
+                    source: 'database',
+                    message: `从数据库找到 ${users.length} 个用户`
+                });
+                console.log(`✅ 从数据库获取用户列表成功: ${users.length} 个用户`);
+                return;
+            } catch (dbError) {
+                console.warn(`⚠️ 数据库读取失败，尝试文件存储:`, dbError.message);
+            }
+        }
+        
+        // 备用方案：文件存储
         const files = await fs.readdir(DATA_DIR);
         const users = files
             .filter(file => file.endsWith('.json'))
@@ -182,8 +278,10 @@ app.get('/api/users', async (req, res) => {
         res.json({
             success: true,
             users: userInfos,
-            message: `找到 ${users.length} 个用户`
+            source: 'file',
+            message: `从文件找到 ${users.length} 个用户`
         });
+        console.log(`✅ 从文件获取用户列表成功: ${users.length} 个用户`);
         
     } catch (error) {
         console.error('获取用户列表失败:', error);
@@ -198,16 +296,40 @@ app.get('/api/users', async (req, res) => {
 app.delete('/api/data/:userId', async (req, res) => {
     try {
         const { userId } = req.params;
+        console.log(`💾 请求删除用户数据: ${userId}`);
+        
+        let deleted = false;
+        
+        // 优先使用数据库
+        if (isDbInitialized) {
+            try {
+                deleted = await db.deleteUser(userId);
+                if (deleted) {
+                    res.json({
+                        success: true,
+                        source: 'database',
+                        message: '用户数据从数据库删除成功'
+                    });
+                    console.log(`✅ 用户数据从数据库删除成功: ${userId}`);
+                    return;
+                }
+            } catch (dbError) {
+                console.warn(`⚠️ 数据库删除失败，尝试文件存储:`, dbError.message);
+            }
+        }
+        
+        // 备用方案：文件存储
         const filePath = getUserDataPath(userId);
         
         await fs.unlink(filePath);
         
         res.json({
             success: true,
-            message: '用户数据已删除'
+            source: 'file',
+            message: '用户数据从文件删除成功'
         });
         
-        console.log(`用户数据已删除: ${userId}`);
+        console.log(`✅ 用户数据从文件删除成功: ${userId}`);
         
     } catch (error) {
         if (error.code === 'ENOENT') {
@@ -226,13 +348,60 @@ app.delete('/api/data/:userId', async (req, res) => {
 });
 
 // API: 健康检查
-app.get('/api/health', (req, res) => {
+app.get('/api/health', async (req, res) => {
+    const dbStatus = isDbInitialized ? '✅ SQLite 数据库' : '⚠️ 文件存储 (备用)';
+    
+    let dbInfo = null;
+    if (isDbInitialized) {
+        try {
+            const users = await db.getAllUsers();
+            dbInfo = {
+                userCount: users.length,
+                totalSessions: users.reduce((sum, user) => sum + (user.sessionCount || 0), 0),
+                totalEvents: users.reduce((sum, user) => sum + (user.eventCount || 0), 0)
+            };
+        } catch (error) {
+            dbInfo = { error: error.message };
+        }
+    }
+    
     res.json({
         success: true,
         message: '服务器运行正常',
+        database: dbStatus,
+        dbInfo: dbInfo,
         timestamp: new Date().toISOString(),
         uptime: process.uptime()
     });
+});
+
+// API: 获取数据库统计信息
+app.get('/api/stats', async (req, res) => {
+    try {
+        const { startDate, endDate } = req.query;
+        
+        if (!isDbInitialized) {
+            return res.status(503).json({
+                success: false,
+                message: '数据库不可用，统计功能需要 SQLite 数据库'
+            });
+        }
+        
+        const stats = await db.getStatistics(startDate, endDate);
+        
+        res.json({
+            success: true,
+            stats: stats,
+            message: `获取到 ${stats.length} 天的统计数据`
+        });
+        
+    } catch (error) {
+        console.error('获取统计数据失败:', error);
+        res.status(500).json({
+            success: false,
+            message: '获取统计数据失败: ' + error.message
+        });
+    }
 });
 
 // 根路径处理
@@ -255,6 +424,9 @@ async function startServer() {
         await ensureDataDir();
         console.log('✅ 数据目录已创建');
         
+        // 初始化数据库
+        await initializeDatabase();
+        
         // 确保使用正确的主机和端口
         const host = process.env.HOST || '0.0.0.0';
         const port = process.env.PORT || 3001;
@@ -264,6 +436,7 @@ async function startServer() {
             console.log('📡 服务端口:', port);
             console.log('🏠 监听主机:', host);
             console.log('📁 数据目录:', DATA_DIR);
+            console.log('💾 数据库状态:', isDbInitialized ? '✅ SQLite 数据库' : '⚠️ 文件存储 (备用)');
             console.log('🌐 允许的跨域源:', allowedOrigins.filter(Boolean));
             console.log('📱 环境:', process.env.NODE_ENV || 'development');
             
