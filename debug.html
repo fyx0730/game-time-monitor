@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,6 +14,7 @@
             padding: 20px;
             color: #2d3748;
         }
+
         .container {
             max-width: 800px;
             margin: 0 auto;
@@ -21,11 +23,13 @@
             padding: 30px;
             box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
         }
+
         h1 {
             color: #4a5568;
             text-align: center;
             margin-bottom: 30px;
         }
+
         .debug-section {
             margin-bottom: 30px;
             padding: 20px;
@@ -33,10 +37,12 @@
             border-radius: 10px;
             border-left: 4px solid #4299e1;
         }
+
         .debug-section h2 {
             color: #2d3748;
             margin-bottom: 15px;
         }
+
         .status-item {
             display: flex;
             justify-content: space-between;
@@ -44,15 +50,27 @@
             padding: 8px 0;
             border-bottom: 1px solid #e2e8f0;
         }
+
         .status-item:last-child {
             border-bottom: none;
         }
+
         .status-value {
             font-weight: bold;
         }
-        .status-ok { color: #48bb78; }
-        .status-error { color: #f56565; }
-        .status-warning { color: #ed8936; }
+
+        .status-ok {
+            color: #48bb78;
+        }
+
+        .status-error {
+            color: #f56565;
+        }
+
+        .status-warning {
+            color: #ed8936;
+        }
+
         button {
             background: #4299e1;
             color: white;
@@ -64,21 +82,27 @@
             font-weight: 600;
             transition: background 0.3s;
         }
+
         button:hover {
             background: #3182ce;
         }
+
         .danger-btn {
             background: #f56565;
         }
+
         .danger-btn:hover {
             background: #e53e3e;
         }
+
         .success-btn {
             background: #48bb78;
         }
+
         .success-btn:hover {
             background: #38a169;
         }
+
         .log-area {
             background: #2d3748;
             color: #e2e8f0;
@@ -90,6 +114,7 @@
             overflow-y: auto;
             white-space: pre-wrap;
         }
+
         .back-link {
             display: inline-block;
             margin-bottom: 20px;
@@ -97,17 +122,19 @@
             text-decoration: none;
             font-weight: 600;
         }
+
         .back-link:hover {
             text-decoration: underline;
         }
     </style>
 </head>
+
 <body>
     <div class="container">
         <a href="index.html" class="back-link">← 返回主页面</a>
-        
+
         <h1>🔧 调试工具</h1>
-        
+
         <div class="debug-section">
             <h2>系统状态检查</h2>
             <div id="systemStatus">
@@ -199,7 +226,7 @@
         function setupConsoleCapture() {
             ['log', 'error', 'warn', 'info'].forEach(method => {
                 originalConsole[method] = console[method];
-                console[method] = function(...args) {
+                console[method] = function (...args) {
                     const timestamp = new Date().toLocaleTimeString();
                     const message = `[${timestamp}] ${method.toUpperCase()}: ${args.join(' ')}`;
                     logBuffer.push(message);
@@ -228,7 +255,7 @@
         // 系统状态检查
         function checkSystemStatus() {
             // localStorage 支持
-            const localStorageSupported = typeof(Storage) !== "undefined";
+            const localStorageSupported = typeof (Storage) !== "undefined";
             document.getElementById('localStorageSupport').textContent = localStorageSupported ? '✅ 支持' : '❌ 不支持';
             document.getElementById('localStorageSupport').className = localStorageSupported ? 'status-value status-ok' : 'status-value status-error';
 
@@ -297,7 +324,7 @@
 
             // 尝试连接到默认的 MQTT Broker
             const brokerUrl = 'wss://guest:test@mqtt.aimaker.space:8084/mqtt';
-            
+
             try {
                 const client = mqtt.connect(brokerUrl, {
                     clientId: 'debug-test-' + Math.random().toString(16).substring(2, 8),
@@ -328,7 +355,7 @@
         // 测试 WebSocket 支持
         function testWebSocketSupport() {
             const resultDiv = document.getElementById('mqttTestResult');
-            
+
             if (typeof WebSocket === 'undefined') {
                 resultDiv.innerHTML = '<p style="color: #f56565;">❌ 浏览器不支持 WebSocket</p>';
                 return;
@@ -342,7 +369,7 @@
             try {
                 const gameData = localStorage.getItem('gameMonitorData');
                 const settings = localStorage.getItem('mqttConnectionSettings');
-                
+
                 const exportData = {
                     gameData: gameData ? JSON.parse(gameData) : null,
                     settings: settings ? JSON.parse(settings) : null,
@@ -351,13 +378,13 @@
                 };
 
                 const dataStr = JSON.stringify(exportData, null, 2);
-                const dataBlob = new Blob([dataStr], {type: 'application/json'});
-                
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+
                 const link = document.createElement('a');
                 link.href = URL.createObjectURL(dataBlob);
                 link.download = `game-monitor-backup-${new Date().toISOString().split('T')[0]}.json`;
                 link.click();
-                
+
                 console.log('数据导出成功');
             } catch (error) {
                 console.error('数据导出失败:', error);
@@ -370,28 +397,28 @@
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = '.json';
-            
-            input.onchange = function(event) {
+
+            input.onchange = function (event) {
                 const file = event.target.files[0];
                 if (!file) return;
-                
+
                 const reader = new FileReader();
-                reader.onload = function(e) {
+                reader.onload = function (e) {
                     try {
                         const importData = JSON.parse(e.target.result);
-                        
+
                         if (importData.gameData) {
                             localStorage.setItem('gameMonitorData', JSON.stringify(importData.gameData));
                         }
-                        
+
                         if (importData.settings) {
                             localStorage.setItem('mqttConnectionSettings', JSON.stringify(importData.settings));
                         }
-                        
+
                         console.log('数据导入成功');
                         alert('数据导入成功！请刷新页面查看。');
                         checkStorageStatus();
-                        
+
                     } catch (error) {
                         console.error('数据导入失败:', error);
                         alert('数据导入失败: ' + error.message);
@@ -399,7 +426,7 @@
                 };
                 reader.readAsText(file);
             };
-            
+
             input.click();
         }
 
@@ -411,10 +438,10 @@
                     timestamp: new Date().toISOString(),
                     random: Math.random()
                 };
-                
+
                 localStorage.setItem('debugTest', JSON.stringify(testData));
                 const saved = localStorage.getItem('debugTest');
-                
+
                 if (saved) {
                     const parsed = JSON.parse(saved);
                     if (parsed.random === testData.random) {
@@ -428,9 +455,9 @@
                     console.error('❌ 数据保存测试失败: 无法读取');
                     alert('数据保存测试失败: 无法读取');
                 }
-                
+
                 localStorage.removeItem('debugTest');
-                
+
             } catch (error) {
                 console.error('数据保存测试异常:', error);
                 alert('数据保存测试异常: ' + error.message);
@@ -454,11 +481,11 @@
         }
 
         // 页面加载时执行检查
-        window.onload = function() {
+        window.onload = function () {
             setupConsoleCapture();
             checkSystemStatus();
             checkStorageStatus();
-            
+
             console.log('调试页面已加载');
             console.log('当前时间:', new Date().toISOString());
             console.log('页面URL:', window.location.href);
@@ -470,4 +497,5 @@
         }, 5000);
     </script>
 </body>
+
 </html>

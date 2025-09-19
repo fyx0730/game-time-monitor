@@ -9,11 +9,21 @@ class GameMonitorDashboard {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
         
+        // 云端存储配置
+        this.cloudStorage = {
+            enabled: false,
+            serverUrl: this.getDefaultServerUrl(),
+            userId: this.generateUserId(),
+            syncInterval: 30000, // 30秒同步一次
+            lastSync: null
+        };
+        
         this.initializeElements();
         this.initializeChart();
         this.bindEvents();
         this.loadStoredData();
         this.loadConnectionSettings();
+        this.initializeCloudStorage();
         
         // 页面加载后自动连接
         setTimeout(() => {
@@ -22,6 +32,9 @@ class GameMonitorDashboard {
 
         // 启动定期保存
         this.startPeriodicSave();
+        
+        // 启动云端同步
+        this.startCloudSync();
 
         // 检查是否在 GitHub Pages 上运行
         if (window.location.hostname.includes('github.io')) {
@@ -646,6 +659,7 @@ class GameMonitorDashboard {
             
             const jsonData = JSON.stringify(data);
             localStorage.setItem('gameMonitorData', jsonData);
+            localStorage.setItem('gameMonitorData_timestamp', data.timestamp);
             
             console.log('✅ 数据保存成功:', {
                 playersCount: this.players.size,
@@ -659,6 +673,14 @@ class GameMonitorDashboard {
             if (!saved) {
                 console.error('❌ 数据保存失败: localStorage 返回空值');
                 this.showNotification('数据保存失败', 'error');
+            } else {
+                // 如果启用了云端存储，异步同步到云端
+                if (this.cloudStorage.enabled) {
+                    // 不等待结果，避免阻塞界面
+                    this.syncToCloud().catch(error => {
+                        console.warn('云端同步失败，但本地数据已保存:', error.message);
+                    });
+                }
             }
             
         } catch (error) {
@@ -1150,6 +1172,288 @@ class GameMonitorDashboard {
                 console.log('🔄 定期保存数据完成');
             }
         }, 60000); // 每分钟保存一次
+    }
+
+    // ============ 云端存储相关方法 ============
+    
+    generateUserId() {
+        // 尝试从本地存储获取用户ID
+        let userId = localStorage.getItem('cloudUserId');
+        if (!userId) {
+            // 生成新的用户ID
+            userId = 'user_' + Date.now() + '_' + Math.random().toString(36).substring(2, 8);
+            localStorage.setItem('cloudUserId', userId);
+        }
+        return userId;
+    }
+    
+    getDefaultServerUrl() {
+        // 根据环境自动选择默认后台服务地址
+        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+            // 本地开发环境
+            return 'http://localhost:3001/api';
+        } else if (window.location.hostname.endsWith('.github.io')) {
+            // GitHub Pages 环境 - 使用公共后台服务
+            return 'https://game-monitor-api.herokuapp.com/api';
+        } else {
+            // 其他环境，默认使用相对路径
+            return '/api';
+        }
+    }
+    
+    initializeCloudStorage() {
+        // 从本地存储加载云端存储配置
+        const storedConfig = localStorage.getItem('cloudStorageConfig');
+        if (storedConfig) {
+            try {
+                const config = JSON.parse(storedConfig);
+                this.cloudStorage = { ...this.cloudStorage, ...config };
+                console.log('🌐 云端存储配置已加载:', this.cloudStorage);
+            } catch (error) {
+                console.error('云端存储配置解析失败:', error);
+            }
+        }
+        
+        // 添加云端存储设置界面
+        this.addCloudStorageUI();
+    }
+    
+    addCloudStorageUI() {
+        const configPanel = document.querySelector('.config-panel');
+        if (!configPanel) return;
+        
+        const cloudConfigHtml = `
+            <div class="config-item">
+                <label>云端存储:</label>
+                <div style="display: flex; gap: 10px; align-items: center;">
+                    <input type="checkbox" id="cloudEnabled" ${this.cloudStorage.enabled ? 'checked' : ''}>
+                    <label for="cloudEnabled" style="margin: 0;">启用</label>
+                    <input type="text" id="serverUrl" placeholder="后台服务地址" value="${this.cloudStorage.serverUrl}" style="flex: 1; margin: 0;">
+                    <button id="testCloudBtn" style="padding: 8px 12px; margin: 0;">测试</button>
+                </div>
+                <small style="color: #718096; font-size: 0.8rem;">用户ID: ${this.cloudStorage.userId}</small>
+            </div>
+        `;
+        
+        configPanel.insertAdjacentHTML('beforeend', cloudConfigHtml);
+        
+        // 绑定事件
+        document.getElementById('cloudEnabled').addEventListener('change', (e) => {
+            this.cloudStorage.enabled = e.target.checked;
+            this.saveCloudStorageConfig();
+            this.updateCloudStatus();
+            if (this.cloudStorage.enabled) {
+                this.syncToCloud();
+            }
+        });
+        
+        document.getElementById('serverUrl').addEventListener('change', (e) => {
+            this.cloudStorage.serverUrl = e.target.value;
+            this.saveCloudStorageConfig();
+        });
+        
+        document.getElementById('testCloudBtn').addEventListener('click', () => {
+            this.testCloudConnection();
+        });
+    }
+    
+    saveCloudStorageConfig() {
+        localStorage.setItem('cloudStorageConfig', JSON.stringify(this.cloudStorage));
+        this.updateCloudStatus();
+    }
+    
+    updateCloudStatus() {
+        const cloudStatusElement = document.getElementById('cloudStatus');
+        if (cloudStatusElement) {
+            if (this.cloudStorage.enabled) {
+                const lastSync = this.cloudStorage.lastSync;
+                const syncText = lastSync ? 
+                    `上次同步: ${lastSync.toLocaleTimeString()}` : 
+                    '正在同步...';
+                cloudStatusElement.textContent = `☁️ 云端存储: 已启用 (${syncText})`;
+                cloudStatusElement.style.color = '#48bb78';
+            } else {
+                cloudStatusElement.textContent = '云端存储: 未启用';
+                cloudStatusElement.style.color = '#718096';
+            }
+        }
+    }
+    
+    async testCloudConnection() {
+        try {
+            const response = await fetch(`${this.cloudStorage.serverUrl}/health`);
+            const result = await response.json();
+            
+            if (result.success) {
+                this.showNotification('✅ 云端服务连接成功', 'success');
+            } else {
+                this.showNotification('❌ 云端服务响应异常', 'error');
+            }
+        } catch (error) {
+            console.error('云端连接测试失败:', error);
+            this.showNotification('❌ 云端服务连接失败: ' + error.message, 'error');
+        }
+    }
+    
+    startCloudSync() {
+        if (!this.cloudStorage.enabled) return;
+        
+        // 首次加载时尝试从云端同步
+        setTimeout(() => {
+            this.syncFromCloud();
+        }, 2000);
+        
+        // 定期同步到云端
+        setInterval(() => {
+            if (this.cloudStorage.enabled && this.players.size > 0) {
+                this.syncToCloud();
+            }
+        }, this.cloudStorage.syncInterval);
+    }
+    
+    async syncToCloud() {
+        if (!this.cloudStorage.enabled) return;
+        
+        try {
+            const data = {
+                players: Array.from(this.players.entries()),
+                events: this.events.slice(0, 50),
+                timestamp: new Date().toISOString(),
+                version: '1.0'
+            };
+            
+            const response = await fetch(`${this.cloudStorage.serverUrl}/data/${this.cloudStorage.userId}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ data })
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                this.cloudStorage.lastSync = new Date();
+                this.updateCloudStatus();
+                console.log('☁️ 数据已同步到云端:', result.timestamp);
+            } else {
+                console.error('云端同步失败:', result.message);
+            }
+            
+        } catch (error) {
+            console.error('云端同步异常:', error);
+        }
+    }
+    
+    async syncFromCloud() {
+        if (!this.cloudStorage.enabled) return;
+        
+        try {
+            const response = await fetch(`${this.cloudStorage.serverUrl}/data/${this.cloudStorage.userId}`);
+            const result = await response.json();
+            
+            if (result.success && result.data) {
+                const cloudData = result.data;
+                
+                // 检查云端数据是否比本地数据新
+                const localTimestamp = localStorage.getItem('gameMonitorData_timestamp') || '1970-01-01T00:00:00.000Z';
+                const cloudTimestamp = cloudData.timestamp || cloudData.serverTimestamp || '1970-01-01T00:00:00.000Z';
+                
+                if (new Date(cloudTimestamp) > new Date(localTimestamp)) {
+                    console.log('☁️ 发现更新的云端数据，正在同步...');
+                    
+                    // 合并数据而不是直接覆盖
+                    this.mergeCloudData(cloudData);
+                    
+                    this.updateDisplay();
+                    this.showNotification('☁️ 已从云端同步最新数据', 'success');
+                    
+                } else {
+                    console.log('☁️ 本地数据已是最新版本');
+                }
+                
+            } else {
+                console.log('☁️ 云端暂无数据或数据格式错误');
+            }
+            
+        } catch (error) {
+            console.error('从云端同步数据失败:', error);
+        }
+    }
+    
+    mergeCloudData(cloudData) {
+        try {
+            // 合并玩家数据
+            if (cloudData.players && Array.isArray(cloudData.players)) {
+                const cloudPlayers = new Map(cloudData.players);
+                
+                cloudPlayers.forEach((cloudPlayer, playerId) => {
+                    const localPlayer = this.players.get(playerId);
+                    
+                    if (!localPlayer) {
+                        // 本地没有此玩家，直接添加
+                        this.players.set(playerId, {
+                            ...cloudPlayer,
+                            sessions: cloudPlayer.sessions ? cloudPlayer.sessions.map(s => ({
+                                ...s,
+                                startTime: new Date(s.startTime),
+                                endTime: s.endTime ? new Date(s.endTime) : null
+                            })) : []
+                        });
+                    } else {
+                        // 合并玩家数据，保留最新的总时长和会话
+                        if (cloudPlayer.totalTime > localPlayer.totalTime) {
+                            localPlayer.totalTime = cloudPlayer.totalTime;
+                        }
+                        
+                        // 合并会话数据
+                        if (cloudPlayer.sessions && cloudPlayer.sessions.length > 0) {
+                            const cloudSessions = cloudPlayer.sessions.map(s => ({
+                                ...s,
+                                startTime: new Date(s.startTime),
+                                endTime: s.endTime ? new Date(s.endTime) : null
+                            }));
+                            
+                            // 简单合并：取最新的会话数据
+                            if (cloudSessions.length > localPlayer.sessions.length) {
+                                localPlayer.sessions = cloudSessions;
+                            }
+                        }
+                    }
+                });
+            }
+            
+            // 合并事件数据
+            if (cloudData.events && Array.isArray(cloudData.events)) {
+                const cloudEvents = cloudData.events.map(event => ({
+                    ...event,
+                    timestamp: new Date(event.timestamp)
+                }));
+                
+                // 合并事件，去重
+                const allEvents = [...this.events, ...cloudEvents];
+                const uniqueEvents = allEvents.filter((event, index, arr) => 
+                    arr.findIndex(e => 
+                        e.playerId === event.playerId && 
+                        e.type === event.type && 
+                        Math.abs(new Date(e.timestamp) - new Date(event.timestamp)) < 1000
+                    ) === index
+                );
+                
+                this.events = uniqueEvents
+                    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+                    .slice(0, 100);
+            }
+            
+            // 保存到本地
+            this.saveData();
+            localStorage.setItem('gameMonitorData_timestamp', cloudData.timestamp || cloudData.serverTimestamp || new Date().toISOString());
+            
+            console.log('✅ 云端数据合并完成');
+            
+        } catch (error) {
+            console.error('合并云端数据失败:', error);
+        }
     }
 }
 

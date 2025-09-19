@@ -96,6 +96,13 @@ h1 {
     margin-top: 2px;
 }
 
+#cloudStatus {
+    font-size: 0.75rem;
+    color: #718096;
+    white-space: nowrap;
+    margin-top: 2px;
+}
+
 .config-panel {
     background: rgba(255, 255, 255, 0.95);
     padding: 20px;

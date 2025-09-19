@@ -20,6 +20,7 @@
 - 📈 **可视化图表** - 在线玩家数量趋势图
 - 📋 **事件日志** - 记录所有游戏开始/结束事件
 - 💾 **数据持久化** - 本地存储累计统计数据
+- ☁️ **云端存储** - 支持多设备数据同步（可选）
 - 📱 **响应式设计** - 支持移动端和桌面端
 
 ## 🚀 快速开始
@@ -28,6 +29,8 @@
 直接访问 [在线版本](https://fyx0730.github.io/game-time-monitor/)，无需安装！
 
 ### 本地部署
+
+#### 基础版本（仅本地存储）
 1. **下载项目**
    ```bash
    git clone https://github.com/your-username/game-time-monitor.git
@@ -44,16 +47,46 @@
    # 然后访问 http://localhost:8000
    ```
 
-3. **配置连接**
-   - MQTT Broker: 输入你的 MQTT Broker WebSocket 地址
-   - 主题: 设置要监听的 MQTT 主题（默认：`game`）
+#### 完整版本（包含云端存储）
+1. **启动后台服务**
+   ```bash
+   cd backend
+   chmod +x start.sh
+   ./start.sh
+   ```
+
+2. **访问应用**
+   打开 http://localhost:3001 即可使用完整功能
+
+3. **配置云端存储**
+   - 在配置面板中勾选“启用云端存储”
+   - 默认后台服务地址：`http://localhost:3001/api`
+   - 点击“测试”按钮验证连接
 
 4. **开始监控**
+   - 输入你的 MQTT Broker 地址
+   - 设置要监听的 MQTT 主题（默认：`game`）
    - 点击连接按钮，面板会自动连接并开始接收数据
 
 ## 📦 部署到 GitHub Pages
 
-详细部署指南请查看 [DEPLOY.md](DEPLOY.md)
+### 方法一：使用部署脚本（推荐）
+```bash
+# 一键部署
+./deploy.sh
+
+# 选择部署方式：
+# 1) 完整部署 (前端 + 后台指南)
+# 2) 仅前端部署 (基础版本)
+```
+
+### 方法二：自动部署 (GitHub Actions)
+推送代码到 main 分支后，GitHub Actions 会自动部署。
+
+### 部署后访问地址
+`https://你的用户名.github.io/仓库名/`
+
+📁 **详细部署指南：[GITHUB_PAGES_DEPLOY.md](GITHUB_PAGES_DEPLOY.md)**
 
 ## MQTT 消息格式
 
@@ -109,9 +142,10 @@ mosquitto_pub -h localhost -t "game" -m '{"event":"game_end","playerId":"test123
 ## 技术栈
 
 - **前端**: HTML5, CSS3, JavaScript (ES6+)
+- **后端**: Node.js, Express.js (可选)
 - **MQTT**: MQTT.js (WebSocket 支持)
 - **图表**: Chart.js
-- **存储**: localStorage (浏览器本地存储)
+- **存储**: localStorage + 云端文件存储 (可选)
 
 ## 浏览器兼容性
 
