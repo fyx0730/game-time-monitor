@@ -13,26 +13,39 @@ const allowedOrigins = [
     'http://localhost:3001',
     'http://127.0.0.1:8000',
     'https://fyx0730.github.io',
+    'https://your-username.github.io', // 通用 GitHub Pages
     process.env.CORS_ORIGIN
 ].filter(Boolean); // 过滤掉 undefined
+
+console.log('🌐 配置的跨域源:', allowedOrigins);
 
 // 中间件
 app.use(cors({
     origin: function (origin, callback) {
-        // 允许没有 origin 的请求 (如移动应用)
-        if (!origin) return callback(null, true);
+        console.log('🌍 请求来源:', origin);
+        
+        // 允许没有 origin 的请求 (如移动应用、Postman)
+        if (!origin) {
+            console.log('✅ 允许无来源请求');
+            return callback(null, true);
+        }
         
         // 检查是否在允许列表中
         if (allowedOrigins.indexOf(origin) !== -1) {
+            console.log('✅ 来源在允许列表中');
             callback(null, true);
-        } else if (origin.endsWith('.github.io') || origin.includes('localhost')) {
+        } else if (origin.endsWith('.github.io') || origin.includes('localhost') || origin.includes('127.0.0.1')) {
             // 动态允许 GitHub Pages 和本地开发
+            console.log('✅ 动态允许的来源');
             callback(null, true);
         } else {
+            console.log('❌ 不允许的来源:', origin);
             callback(new Error('Not allowed by CORS'));
         }
     },
-    credentials: true
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(express.json({ limit: '10mb' }));
 

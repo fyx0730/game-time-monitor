@@ -1280,18 +1280,43 @@ class GameMonitorDashboard {
     }
     
     async testCloudConnection() {
+        const testUrl = `${this.cloudStorage.serverUrl}/health`;
+        
         try {
-            const response = await fetch(`${this.cloudStorage.serverUrl}/health`);
+            console.log('🔍 正在测试云端连接...', testUrl);
+            
+            const response = await fetch(testUrl, {
+                method: 'GET',
+                mode: 'cors',
+                credentials: 'omit'
+            });
+            
+            console.log('📶 测试响应:', response.status, response.statusText);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
+            
             const result = await response.json();
             
             if (result.success) {
                 this.showNotification('✅ 云端服务连接成功', 'success');
+                console.log('✅ 连接测试成功:', result);
             } else {
                 this.showNotification('❌ 云端服务响应异常', 'error');
             }
         } catch (error) {
             console.error('云端连接测试失败:', error);
-            this.showNotification('❌ 云端服务连接失败: ' + error.message, 'error');
+            
+            let errorMessage = '云端服务连接失败';
+            
+            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                errorMessage = '无法连接到后台服务，请检查：\n1. 服务地址是否正确\n2. 后台服务是否正在运行\n3. 网络连接是否正常';
+            } else if (error.message.includes('CORS')) {
+                errorMessage = 'CORS 错误：跨域访问被阻止';
+            }
+            
+            this.showNotification('❌ ' + errorMessage, 'error');
         }
     }
     
@@ -1315,6 +1340,8 @@ class GameMonitorDashboard {
         if (!this.cloudStorage.enabled) return;
         
         try {
+            console.log('☁️ 开始同步到云端...', this.cloudStorage.serverUrl);
+            
             const data = {
                 players: Array.from(this.players.entries()),
                 events: this.events.slice(0, 50),
@@ -1322,13 +1349,24 @@ class GameMonitorDashboard {
                 version: '1.0'
             };
             
-            const response = await fetch(`${this.cloudStorage.serverUrl}/data/${this.cloudStorage.userId}`, {
+            const requestUrl = `${this.cloudStorage.serverUrl}/data/${this.cloudStorage.userId}`;
+            console.log('🔗 请求地址:', requestUrl);
+            
+            const response = await fetch(requestUrl, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ data })
+                body: JSON.stringify({ data }),
+                mode: 'cors', // 显式设置 CORS 模式
+                credentials: 'omit' // 不发送 cookies
             });
+            
+            console.log('📶 响应状态:', response.status, response.statusText);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
             
             const result = await response.json();
             
@@ -1338,10 +1376,26 @@ class GameMonitorDashboard {
                 console.log('☁️ 数据已同步到云端:', result.timestamp);
             } else {
                 console.error('云端同步失败:', result.message);
+                this.showNotification('云端同步失败: ' + result.message, 'error');
             }
             
         } catch (error) {
             console.error('云端同步异常:', error);
+            
+            // 根据错误类型提供更具体的错误信息
+            let errorMessage = '云端同步失败';
+            
+            if (error.name === 'TypeError' && error.message.includes('Failed to fetch')) {
+                errorMessage = '无法连接到云端服务，请检查网络或后台服务状态';
+            } else if (error.message.includes('CORS')) {
+                errorMessage = '跨域访问被阻止，请检查后台服务 CORS 配置';
+            } else if (error.message.includes('HTTP 500')) {
+                errorMessage = '后台服务器内部错误';
+            } else if (error.message.includes('HTTP 404')) {
+                errorMessage = 'API 接口不存在，请检查后台服务地址';
+            }
+            
+            this.showNotification(errorMessage, 'error');
         }
     }
     
