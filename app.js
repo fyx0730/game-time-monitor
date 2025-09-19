@@ -9,7 +9,14 @@ class GameMonitorDashboard {
         this.reconnectAttempts = 0;
         this.maxReconnectAttempts = 5;
         
-        // 云端存储配置
+        // 存储配置
+        this.storage = {
+            type: localStorage.getItem('gameMonitor_storageType') || 'localStorage', // 'localStorage', 'indexedDB', 'githubGist'
+            indexedDB: null,
+            githubGist: null
+        };
+        
+        // 云端存储配置（保持兼容性）
         this.cloudStorage = {
             enabled: false,
             serverUrl: this.getDefaultServerUrl(),

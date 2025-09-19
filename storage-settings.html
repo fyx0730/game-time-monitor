@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>存储设置 - 游戏时长监控面板</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .storage-option {
+            background: #f7fafc;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            border-left: 4px solid #4299e1;
+            transition: all 0.3s;
+        }
+
+        .storage-option:hover {
+            background: #edf2f7;
+            transform: translateX(4px);
+        }
+
+        .storage-option.selected {
+            border-left-color: #48bb78;
+            background: #f0fff4;
+        }
+
+        .storage-option.disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .storage-title {
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .storage-description {
+            color: #718096;
+            margin-bottom: 12px;
+            font-size: 0.9rem;
+        }
+
+        .storage-features {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .feature-tag {
+            background: #e6fffa;
+            color: #2d3748;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            border: 1px solid rgba(66, 153, 225, 0.2);
+        }
+
+        .feature-tag.pro {
+            background: #fed7d7;
+            border-color: rgba(245, 101, 101, 0.2);
+        }
+
+        .feature-tag.free {
+            background: #c6f6d5;
+            border-color: rgba(72, 187, 120, 0.2);
+        }
+
+        .storage-config {
+            margin-top: 15px;
+            padding: 15px;
+            background: #ffffff;
+            border-radius: 8px;
+            border: 1px solid #e2e8f0;
+        }
+
+        .config-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .config-row label {
+            min-width: 120px;
+            font-weight: 600;
+            color: #4a5568;
+        }
+
+        .config-row input {
+            flex: 1;
+            padding: 8px 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .config-row button {
+            margin-left: 10px;
+            padding: 8px 16px;
+            background: #4299e1;
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-indicator.online {
+            background: #48bb78;
+        }
+
+        .status-indicator.offline {
+            background: #f56565;
+        }
+
+        .status-indicator.unknown {
+            background: #ed8936;
+        }
+
+        .migration-panel {
+            background: #fffbf0;
+            border: 1px solid #fbd38d;
+            border-radius: 12px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .migration-panel h3 {
+            color: #c05621;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>📁 存储设置</h1>
+            <div class="connection-status">
+                <a href="index.html" style="color: #4299e1; text-decoration: none; font-weight: 600;">← 返回主页</a>
+            </div>
+        </header>
+
+        <div style="margin-bottom: 30px;">
+            <h2>选择数据存储方案</h2>
+            <p style="color: #718096; margin-bottom: 20px;">
+                选择最适合您需求的数据存储方式。每种方案都有不同的特点和适用场景。
+            </p>
+
+            <!-- localStorage 方案 -->
+            <div class="storage-option" id="localStorageOption">
+                <div class="storage-title">
+                    <span class="status-indicator online"></span>
+                    📱 浏览器本地存储 (localStorage)
+                    <span class="feature-tag free">免费</span>
+                    <span class="feature-tag">默认</span>
+                </div>
+                <div class="storage-description">
+                    数据保存在浏览器本地，无需任何配置，完全免费。适合单设备使用。
+                </div>
+                <div class="storage-features">
+                    <span class="feature-tag">零配置</span>
+                    <span class="feature-tag">完全离线</span>
+                    <span class="feature-tag">隐私安全</span>
+                    <span class="feature-tag pro">仅限单设备</span>
+                </div>
+                <div style="margin-top: 10px;">
+                    <button onclick="selectStorage('localStorage')">使用此方案</button>
+                </div>
+            </div>
+
+            <!-- IndexedDB 方案 -->
+            <div class="storage-option" id="indexedDBOption">
+                <div class="storage-title">
+                    <span class="status-indicator unknown" id="indexedDBStatus"></span>
+                    🗄️ 高级浏览器存储 (IndexedDB)
+                    <span class="feature-tag free">免费</span>
+                    <span class="feature-tag">推荐</span>
+                </div>
+                <div class="storage-description">
+                    浏览器原生数据库，支持大容量存储和复杂查询，性能更好。
+                </div>
+                <div class="storage-features">
+                    <span class="feature-tag">大容量</span>
+                    <span class="feature-tag">高性能</span>
+                    <span class="feature-tag">复杂查询</span>
+                    <span class="feature-tag">数据完整性</span>
+                </div>
+                <div style="margin-top: 10px;">
+                    <button onclick="selectStorage('indexedDB')" id="indexedDBBtn">使用此方案</button>
+                    <button onclick="testIndexedDB()" style="background: #718096;">测试兼容性</button>
+                </div>
+            </div>
+
+            <!-- GitHub Gist 方案 -->
+            <div class="storage-option" id="githubGistOption">
+                <div class="storage-title">
+                    <span class="status-indicator offline" id="gistStatus"></span>
+                    🌐 GitHub Gist 云存储
+                    <span class="feature-tag free">免费</span>
+                    <span class="feature-tag">跨设备</span>
+                </div>
+                <div class="storage-description">
+                    使用 GitHub Gist 作为免费的云存储，支持跨设备同步，需要 GitHub 账号。
+                </div>
+                <div class="storage-features">
+                    <span class="feature-tag">跨设备同步</span>
+                    <span class="feature-tag">版本控制</span>
+                    <span class="feature-tag">在线备份</span>
+                    <span class="feature-tag pro">需要 GitHub</span>
+                </div>
+                <div class="storage-config" id="gistConfig" style="display: none;">
+                    <div class="config-row">
+                        <label>GitHub Token:</label>
+                        <input type="password" id="githubToken" placeholder="ghp_xxxxxxxxxxxx">
+                        <button onclick="setGitHubToken()">设置</button>
+                    </div>
+                    <div class="config-row">
+                        <label>Gist ID:</label>
+                        <input type="text" id="gistId" placeholder="自动生成" readonly>
+                        <button onclick="clearGistConfig()">清除</button>
+                    </div>
+                    <div style="margin-top: 10px; padding: 10px; background: #f0f8ff; border-radius: 6px; font-size: 0.85rem;">
+                        <strong>配置步骤：</strong><br>
+                        1. 访问 <a href="https://github.com/settings/tokens" target="_blank">GitHub Token 页面</a><br>
+                        2. 创建新 Token，选择 "gist" 权限<br>
+                        3. 复制 Token 并粘贴到上方输入框<br>
+                        4. 点击"设置"按钮完成配置
+                    </div>
+                </div>
+                <div style="margin-top: 10px;">
+                    <button onclick="selectStorage('githubGist')">使用此方案</button>
+                    <button onclick="toggleGistConfig()" style="background: #718096;">配置</button>
+                </div>
+            </div>
+
+            <!-- 后台服务方案 (保持兼容性) -->
+            <div class="storage-option" id="backendOption">
+                <div class="storage-title">
+                    <span class="status-indicator offline" id="backendStatus"></span>
+                    🚀 后台数据库服务
+                    <span class="feature-tag pro">需要部署</span>
+                    <span class="feature-tag">企业级</span>
+                </div>
+                <div class="storage-description">
+                    完整的后台数据库服务，支持高性能查询和多用户访问。需要部署到 Railway 等云服务。
+                </div>
+                <div class="storage-features">
+                    <span class="feature-tag">高性能</span>
+                    <span class="feature-tag">多用户</span>
+                    <span class="feature-tag">企业级</span>
+                    <span class="feature-tag pro">需要云服务</span>
+                </div>
+                <div style="margin-top: 10px;">
+                    <button onclick="window.open('DATABASE_USAGE_GUIDE.md', '_blank')" style="background: #718096;">查看部署指南</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- 数据迁移 -->
+        <div class="migration-panel">
+            <h3>🔄 数据迁移</h3>
+            <p style="color: #744210; margin-bottom: 15px;">
+                如果您需要在不同存储方案之间迁移数据，可以使用以下功能：
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button onclick="exportCurrentData()" style="background: #ed8936;">导出当前数据</button>
+                <button onclick="importData()" style="background: #4299e1;">导入数据</button>
+                <button onclick="migrateToSelected()" style="background: #48bb78;">迁移到所选方案</button>
+            </div>
+        </div>
+
+        <!-- 存储状态 -->
+        <div style="background: #f7fafc; padding: 20px; border-radius: 12px; margin-top: 20px;">
+            <h3>📊 当前存储状态</h3>
+            <div id="storageStatus">
+                <p>正在检查存储状态...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 加载存储脚本 -->
+    <script src="indexeddb-storage.js"></script>
+    <script src="github-gist-storage.js"></script>
+    
+    <script>
+        let currentStorage = localStorage.getItem('gameMonitor_storageType') || 'localStorage';
+        let indexedDBStorage = null;
+        let gistStorage = null;
+
+        // 页面加载时初始化
+        document.addEventListener('DOMContentLoaded', async () => {
+            await initializeStorageOptions();
+            updateStorageStatus();
+            updateUI();
+        });
+
+        // 初始化存储选项
+        async function initializeStorageOptions() {
+            // 测试 IndexedDB 支持
+            if ('indexedDB' in window) {
+                try {
+                    indexedDBStorage = new IndexedDBStorage();
+                    await indexedDBStorage.initialize();
+                    document.getElementById('indexedDBStatus').className = 'status-indicator online';
+                    document.getElementById('indexedDBBtn').disabled = false;
+                } catch (error) {
+                    console.warn('IndexedDB 初始化失败:', error);
+                    document.getElementById('indexedDBStatus').className = 'status-indicator offline';
+                    document.getElementById('indexedDBOption').classList.add('disabled');
+                }
+            } else {
+                document.getElementById('indexedDBStatus').className = 'status-indicator offline';
+                document.getElementById('indexedDBOption').classList.add('disabled');
+            }
+
+            // 初始化 GitHub Gist
+            gistStorage = new GitHubGistStorage();
+            const gistStatus = gistStorage.getStatus();
+            
+            if (gistStatus.configured) {
+                document.getElementById('gistStatus').className = 'status-indicator online';
+                document.getElementById('githubToken').value = '已配置 ✓';
+                document.getElementById('gistId').value = gistStatus.gistId;
+            }
+        }
+
+        // 选择存储方案
+        function selectStorage(type) {
+            currentStorage = type;
+            localStorage.setItem('gameMonitor_storageType', type);
+            updateUI();
+            
+            // 显示成功消息
+            alert(`已切换到 ${getStorageName(type)} 存储方案`);
+        }
+
+        // 更新 UI
+        function updateUI() {
+            // 移除所有选中状态
+            document.querySelectorAll('.storage-option').forEach(option => {
+                option.classList.remove('selected');
+            });
+
+            // 添加当前选中状态
+            const currentOption = document.getElementById(currentStorage + 'Option');
+            if (currentOption) {
+                currentOption.classList.add('selected');
+            }
+        }
+
+        // 获取存储方案名称
+        function getStorageName(type) {
+            const names = {
+                'localStorage': '浏览器本地存储',
+                'indexedDB': '高级浏览器存储',
+                'githubGist': 'GitHub Gist 云存储',
+                'backend': '后台数据库服务'
+            };
+            return names[type] || type;
+        }
+
+        // 测试 IndexedDB
+        async function testIndexedDB() {
+            try {
+                const testDB = new IndexedDBStorage();
+                await testDB.initialize();
+                const stats = await testDB.getStorageStats();
+                alert(`IndexedDB 测试成功！\n用户数: ${stats.userCount}\n数据库版本: ${stats.dbVersion}`);
+            } catch (error) {
+                alert(`IndexedDB 测试失败: ${error.message}`);
+            }
+        }
+
+        // 切换 Gist 配置显示
+        function toggleGistConfig() {
+            const config = document.getElementById('gistConfig');
+            config.style.display = config.style.display === 'none' ? 'block' : 'none';
+        }
+
+        // 设置 GitHub Token
+        function setGitHubToken() {
+            const token = document.getElementById('githubToken').value;
+            if (token && token !== '已配置 ✓') {
+                gistStorage.setAccessToken(token);
+                document.getElementById('gistStatus').className = 'status-indicator online';
+                document.getElementById('githubToken').value = '已配置 ✓';
+                alert('GitHub Token 配置成功！');
+            }
+        }
+
+        // 清除 Gist 配置
+        function clearGistConfig() {
+            if (confirm('确定要清除 GitHub Gist 配置吗？')) {
+                gistStorage.clearConfig();
+                document.getElementById('gistStatus').className = 'status-indicator offline';
+                document.getElementById('githubToken').value = '';
+                document.getElementById('gistId').value = '';
+                alert('配置已清除');
+            }
+        }
+
+        // 导出当前数据
+        function exportCurrentData() {
+            try {
+                const gameData = localStorage.getItem('gameMonitorData');
+                const settings = localStorage.getItem('mqttConnectionSettings');
+                
+                const exportData = {
+                    gameData: gameData ? JSON.parse(gameData) : null,
+                    settings: settings ? JSON.parse(settings) : null,
+                    storageType: currentStorage,
+                    exportTime: new Date().toISOString(),
+                    version: '2.0'
+                };
+
+                const dataStr = JSON.stringify(exportData, null, 2);
+                const dataBlob = new Blob([dataStr], { type: 'application/json' });
+
+                const link = document.createElement('a');
+                link.href = URL.createObjectURL(dataBlob);
+                link.download = `game-monitor-export-${new Date().toISOString().split('T')[0]}.json`;
+                link.click();
+
+                console.log('数据导出成功');
+            } catch (error) {
+                alert('数据导出失败: ' + error.message);
+            }
+        }
+
+        // 导入数据
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+
+            input.onchange = function(event) {
+                const file = event.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const importData = JSON.parse(e.target.result);
+
+                        if (importData.gameData) {
+                            localStorage.setItem('gameMonitorData', JSON.stringify(importData.gameData));
+                        }
+
+                        if (importData.settings) {
+                            localStorage.setItem('mqttConnectionSettings', JSON.stringify(importData.settings));
+                        }
+
+                        alert('数据导入成功！请返回主页面查看。');
+                    } catch (error) {
+                        alert('数据导入失败: ' + error.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+
+            input.click();
+        }
+
+        // 迁移到所选方案
+        async function migrateToSelected() {
+            if (currentStorage === 'localStorage') {
+                alert('当前已使用 localStorage，无需迁移');
+                return;
+            }
+
+            try {
+                const gameData = localStorage.getItem('gameMonitorData');
+                if (!gameData) {
+                    alert('没有找到需要迁移的数据');
+                    return;
+                }
+
+                const data = JSON.parse(gameData);
+
+                if (currentStorage === 'indexedDB' && indexedDBStorage) {
+                    await indexedDBStorage.saveUserData('migrated_user', data);
+                    alert('数据已成功迁移到 IndexedDB');
+                } else if (currentStorage === 'githubGist' && gistStorage) {
+                    await gistStorage.saveToGist(data);
+                    alert('数据已成功迁移到 GitHub Gist');
+                } else {
+                    alert('目标存储方案不可用或未配置');
+                }
+
+            } catch (error) {
+                alert('数据迁移失败: ' + error.message);
+            }
+        }
+
+        // 更新存储状态
+        function updateStorageStatus() {
+            const statusDiv = document.getElementById('storageStatus');
+            
+            try {
+                const gameData = localStorage.getItem('gameMonitorData');
+                const data = gameData ? JSON.parse(gameData) : null;
+                
+                const status = `
+                    <p><strong>当前存储方案:</strong> ${getStorageName(currentStorage)}</p>
+                    <p><strong>数据大小:</strong> ${gameData ? (gameData.length / 1024).toFixed(2) + ' KB' : '0 KB'}</p>
+                    <p><strong>玩家数量:</strong> ${data?.players?.length || 0}</p>
+                    <p><strong>事件数量:</strong> ${data?.events?.length || 0}</p>
+                    <p><strong>最后更新:</strong> ${data?.timestamp || '无数据'}</p>
+                `;
+                
+                statusDiv.innerHTML = status;
+            } catch (error) {
+                statusDiv.innerHTML = '<p style="color: #f56565;">状态检查失败: ' + error.message + '</p>';
+            }
+        }
+    </script>
+</body>
+</html>
