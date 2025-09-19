@@ -1194,6 +1194,8 @@ class GameMonitorDashboard {
             return 'http://localhost:3001/api';
         } else if (window.location.hostname.endsWith('.github.io')) {
             // GitHub Pages 环境 - 使用 Railway 后台服务
+            // 如果 Railway 服务不可用，可以使用以下任意一个备用服务：
+            // return 'https://jsonplaceholder.typicode.com'; // 仅供测试
             return 'https://game-time-monitor-production.up.railway.app/api';
         } else {
             // 其他环境，默认使用相对路径

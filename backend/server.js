@@ -255,9 +255,14 @@ async function startServer() {
         await ensureDataDir();
         console.log('✅ 数据目录已创建');
         
-        const server = app.listen(PORT, '0.0.0.0', () => {
+        // 确保使用正确的主机和端口
+        const host = process.env.HOST || '0.0.0.0';
+        const port = process.env.PORT || 3001;
+        
+        const server = app.listen(port, host, () => {
             console.log('🚀 游戏时长监控后台服务已启动');
-            console.log('📡 服务端口:', PORT);
+            console.log('📡 服务端口:', port);
+            console.log('🏠 监听主机:', host);
             console.log('📁 数据目录:', DATA_DIR);
             console.log('🌐 允许的跨域源:', allowedOrigins.filter(Boolean));
             console.log('📱 环境:', process.env.NODE_ENV || 'development');
@@ -267,14 +272,26 @@ async function startServer() {
                 console.log('🔗 Railway 域名:', process.env.RAILWAY_PUBLIC_DOMAIN);
                 console.log('🔗 健康检查:', `https://${process.env.RAILWAY_PUBLIC_DOMAIN}/api/health`);
             } else {
-                console.log('🔗 本地地址:', `http://localhost:${PORT}`);
-                console.log('🔗 健康检查:', `http://localhost:${PORT}/api/health`);
+                console.log('🔗 本地地址:', `http://${host}:${port}`);
+                console.log('🔗 健康检查:', `http://${host}:${port}/api/health`);
             }
         });
         
         server.on('error', (error) => {
             console.error('❌ 服务器启动失败:', error);
+            if (error.code === 'EADDRINUSE') {
+                console.error(`端口 ${port} 已被占用`);
+            }
             process.exit(1);
+        });
+        
+        // 优雅关闭
+        process.on('SIGTERM', () => {
+            console.log('🛑 收到 SIGTERM 信号，正在关闭服务器...');
+            server.close(() => {
+                console.log('✅ 服务器已关闭');
+                process.exit(0);
+            });
         });
         
     } catch (error) {
