@@ -23,6 +23,7 @@ const allowedOrigins = [
 ].filter(Boolean); // 过滤掉 undefined
 
 console.log('🌐 配置的跨域源:', allowedOrigins);
+console.log('🔧 CORS_ORIGIN 环境变量:', process.env.CORS_ORIGIN);
 
 // 中间件
 app.use(cors({
@@ -45,12 +46,19 @@ app.use(cors({
             callback(null, true);
         } else {
             console.log('❌ 不允许的来源:', origin);
-            callback(new Error('Not allowed by CORS'));
+            console.log('📝 建议将此来源添加到环境变量 CORS_ORIGIN 中');
+            // 在生产环境中，为了兼容性，暂时允许所有 GitHub Pages 域名
+            if (process.env.NODE_ENV === 'production' && origin.includes('github.io')) {
+                console.log('🔄 生产环境：临时允许 GitHub Pages 域名');
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
         }
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept']
 }));
 app.use(express.json({ limit: '10mb' }));
 

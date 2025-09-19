@@ -16,21 +16,21 @@ class GameMonitorDashboard {
             githubGist: null
         };
         
-        // 云端存储配置（保持兼容性）
-        this.cloudStorage = {
-            enabled: false,
-            serverUrl: this.getDefaultServerUrl(),
-            userId: this.generateUserId(),
-            syncInterval: 30000, // 30秒同步一次
-            lastSync: null
-        };
+        // 云端存储配置（已禁用）
+        // this.cloudStorage = {
+        //     enabled: false,
+        //     serverUrl: this.getDefaultServerUrl(),
+        //     userId: this.generateUserId(),
+        //     syncInterval: 30000,
+        //     lastSync: null
+        // };
         
         this.initializeElements();
         this.initializeChart();
         this.bindEvents();
         this.loadStoredData();
         this.loadConnectionSettings();
-        this.initializeCloudStorage();
+        // this.initializeCloudStorage(); // 已禁用云端存储
         
         // 页面加载后自动连接
         setTimeout(() => {
@@ -40,8 +40,7 @@ class GameMonitorDashboard {
         // 启动定期保存
         this.startPeriodicSave();
         
-        // 启动云端同步
-        this.startCloudSync();
+        // this.startCloudSync(); // 已禁用云端同步
 
         // 检查是否在 GitHub Pages 上运行
         if (window.location.hostname.includes('github.io')) {
@@ -681,13 +680,8 @@ class GameMonitorDashboard {
                 console.error('❌ 数据保存失败: localStorage 返回空值');
                 this.showNotification('数据保存失败', 'error');
             } else {
-                // 如果启用了云端存储，异步同步到云端
-                if (this.cloudStorage.enabled) {
-                    // 不等待结果，避免阻塞界面
-                    this.syncToCloud().catch(error => {
-                        console.warn('云端同步失败，但本地数据已保存:', error.message);
-                    });
-                }
+                // 数据已保存到本地存储
+                // 云端存储功能已移除
             }
             
         } catch (error) {
